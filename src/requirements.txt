@@ -5,4 +5,6 @@ Flask-SocketIO==5.3.6
 # easy gpt utils 相关依赖
 easy-gpt-utils==0.1.10
 faiss-cpu==1.7.4
+# https://pypi.org/project/pinecone-client/
+# https://github.com/pinecone-io/pinecone-python-client
 pinecone-client==3.0.2
