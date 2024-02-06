@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ html_title }}</title>
+    <title>{{ HTML_TITLE }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='scripts.js') }}"></script>
@@ -19,7 +19,7 @@
 </head>
 <body>
 <header>
-    <h1>{{ html_title }}</h1>
+    <h1>{{ HTML_TITLE }}</h1>
 </header>
 <div>
     <p style="font-size: 10px;" style="line-height: 0.5;">
@@ -32,7 +32,7 @@
             <br>
             {% endautoescape %}
         -->
-        {{ html_changelog | safe }}
+        {{ HTML_CHANGELOG | safe }}
     </p>
 </div>
 <div>

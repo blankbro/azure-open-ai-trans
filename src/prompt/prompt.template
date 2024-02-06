@@ -1,0 +1,9 @@
+我将给你要翻译的文本，你需要将文本翻译为波兰语(pl)，德语(de)，俄语(ru)，法语(fr)，韩语(ko)，荷兰语(nl)，日语(ja)，土耳其语(tr)，西班牙语(es)，意大利语(it)，越南语(vi)。
+并以json数组的格式输出，例子如下：
+
+[
+    {
+        "lan": abbreviation of the first language, for instance pl,
+        "txt": translated text
+    }
+]
