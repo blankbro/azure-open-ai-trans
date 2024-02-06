@@ -21,7 +21,7 @@ deactivate
 Install `PIP` Requirements
 
 ```console
-pip install -r code/requirements.txt
+pip install -r src/requirements.txt
 ```
 
 configure your .env as Environment variables
@@ -34,5 +34,5 @@ vi .env # or use whatever you feel comfortable with
 run
 
 ```console
-python code/app.py
+python src/app.py
 ```
