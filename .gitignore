@@ -2,6 +2,6 @@
 /.venv
 .env
 /**/__pycache__
-/src/prompt/prompt
+/**/prompt
 /**/log.txt
 /**/*.log

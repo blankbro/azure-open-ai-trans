@@ -6,9 +6,9 @@ import time
 from dotenv import load_dotenv
 
 import log_util
-from src.vendors.easy_gpt_utils import gpt, embedding, vector_database
+from vendors.easy_gpt_utils import vector_database, gpt, embedding
 
-logger = log_util.getLogger(__name__)
+logger = log_util.get_logger(__name__)
 
 load_dotenv()
 # GPT3.5
@@ -31,7 +31,7 @@ VECTOR_DATABASE_PINECONE_INDEX = os.getenv("VECTOR_DATABASE_PINECONE_INDEX")
 VECTOR_DATABASE_PINECONE_ENVIRONMENT = os.getenv("VECTOR_DATABASE_PINECONE_ENVIRONMENT")
 VECTOR_DATABASE_PINECONE_API_KEY = os.getenv("VECTOR_DATABASE_PINECONE_API_KEY")
 
-prompt = open('prompt/prompt', 'r')
+prompt = open('src/prompt/prompt', 'r')
 PROMPT_CONTENT = prompt.read()
 prompt.close()
 
@@ -39,8 +39,6 @@ prompt.close()
 def log_error(row_number, row_data, error, translations_str=None):
     error_str = f"Error at row {row_number}: {error}\nInput data: {row_data}\nReturned data: {translations_str}\n"
     logger.error(error_str)
-    with open("log.txt", "a") as log_file:
-        log_file.write(error_str)
 
 
 glossary_token_limit = 800
@@ -155,7 +153,7 @@ def process_row_shot(gpt_instance, row_number, row_data, target_languages, progr
             translated_texts = [t["txt"] for t in translations]
             break
         except Exception as e:
-            logger.error(e)
+            logger.error(f"捕获到异常:{type(e).__name__}", exc_info=True)
             if attempt < retries - 1:
                 logger.warning(
                     f"Row {row_number} Exception, attempt {attempt}, error:{e}, raw text: {translations_str}")
@@ -273,8 +271,7 @@ def process_row(row_number, row_data, target_languages, progress_callback=None, 
         else:
             return process_row_long(gpt_instance, row_number, row_data, target_languages, progress_callback, retries)
     except Exception as e:
-        # 打印异常信息
-        print("未知异常 %s" % e)
+        logger.error(f"捕获到异常:{type(e).__name__}", exc_info=True)
     finally:
         end_time = time.time()
         elapsed_time = end_time - start_time

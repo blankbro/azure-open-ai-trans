@@ -7,15 +7,12 @@ from flask_socketio import SocketIO
 import log_util
 import trans
 
-logger = log_util.getLogger(__name__)
-
+logger = log_util.get_logger(__name__)
 load_dotenv()
 HTML_TITLE = os.getenv("HTML_TITLE")
 HTML_CHANGELOG = os.getenv("HTML_CHANGELOG")
 
 app = Flask(__name__)
-app.logger.addHandler(log_util.root_handler)
-app.logger.addHandler(log_util.error_handler)
 app.secret_key = os.urandom(24)
 app.config['UPLOAD_FOLDER'] = 'output/uploads'
 app.config['DOWNLOAD_FOLDER'] = 'output/downloads'
@@ -57,4 +54,5 @@ def translate_text():
 
 
 if __name__ == '__main__':
+    logger.info("App start")
     app.run(host='0.0.0.0', port=5001, debug=True)

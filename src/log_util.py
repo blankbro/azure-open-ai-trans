@@ -1,8 +1,13 @@
 import logging
-import os.path
+import os
+import sys
 from logging.handlers import RotatingFileHandler
 
-log_dir = 'logs'
+from dotenv import load_dotenv
+
+load_dotenv()
+
+log_dir = os.getenv("LOG_DIR", default='logs')
 root_log_file = f'{log_dir}/info.log'
 error_log_file = f'{log_dir}/error.log'
 
@@ -22,9 +27,28 @@ error_filter.filter = lambda record: record.levelno >= logging.ERROR
 error_handler.addFilter(error_filter)
 
 
-def getLogger(name=None):
+# Console log
+class ConsoleHandler(logging.StreamHandler):
+    def __init__(self, level=logging.NOTSET):
+        logging.Handler.__init__(self, level)
+
+    @property
+    def stream(self):
+        return sys.stdout
+
+
+console_handler = ConsoleHandler()
+console_handler.setFormatter(formatter)
+
+
+def get_logger(name=None):
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
+    add_handler(logger)
+    return logger
+
+
+def add_handler(logger):
     logger.addHandler(root_handler)
     logger.addHandler(error_handler)
-    return logger
+    logger.addHandler(console_handler)
