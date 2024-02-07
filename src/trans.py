@@ -6,7 +6,8 @@ import sys
 import time
 
 from dotenv import load_dotenv
-from easy_gpt_utils import gpt, embedding, vector_database
+
+from src.vendors.easy_gpt_utils import gpt, embedding, vector_database
 
 load_dotenv()
 # GPT3.5
@@ -94,9 +95,9 @@ def get_context(gpt_instance, query_text, max_retries=3):
         api_key=AZURE_OPENAI_MODEL_EMBEDDING_API_KEY,
     )
 
-    pinecorn_instance = vector_database.Pinecone(index=VECTOR_DATABASE_PINECONE_INDEX,
-                                                 api_key=VECTOR_DATABASE_PINECONE_API_KEY,
-                                                 environment=VECTOR_DATABASE_PINECONE_ENVIRONMENT)
+    pinecorn_instance = vector_database.MyPinecone(index=VECTOR_DATABASE_PINECONE_INDEX,
+                                                   api_key=VECTOR_DATABASE_PINECONE_API_KEY,
+                                                   environment=VECTOR_DATABASE_PINECONE_ENVIRONMENT)
 
     ret = None
     for i in range(max_retries):
