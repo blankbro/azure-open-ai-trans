@@ -1,4 +1,5 @@
 import os
+import uuid
 
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify
@@ -35,6 +36,10 @@ def translate_text():
     def report_progress(lang):
         socketio.emit('translation_progress', {'user_id': user_id, 'progress': lang})
 
+    request_id = str(uuid.uuid4())
+    logger.info(
+        f"{request_id} translate_text: user_id {user_id}, enable_gpt4 {enable_gpt4}, target_languages {target_languages}, text {text}")
+
     translations = trans.process_row(
         1,
         # 元组中第四个元素是要翻译的文本
@@ -44,7 +49,7 @@ def translate_text():
         enable_gpt4=enable_gpt4
     )
 
-    logger.info(f" text {text} target_languages {target_languages} user_id {user_id} enable_gpt4 {enable_gpt4}")
+    logger.info(f"{request_id} translate_text end")
 
     result = ""
     for i in range(len(target_languages)):

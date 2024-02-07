@@ -81,23 +81,23 @@ def get_context(gpt_instance, query_text, max_retries=3):
         api_key=AZURE_OPENAI_MODEL_EMBEDDING_API_KEY,
     )
 
-    pinecorn_instance = vector_database.MyPinecone(index=VECTOR_DATABASE_PINECONE_INDEX,
+    pinecone_instance = vector_database.MyPinecone(index=VECTOR_DATABASE_PINECONE_INDEX,
                                                    api_key=VECTOR_DATABASE_PINECONE_API_KEY,
                                                    environment=VECTOR_DATABASE_PINECONE_ENVIRONMENT)
 
     ret = None
     for i in range(max_retries):
         try:
-            logger.debug("start embe")
+            logger.info("start embe")
             embe = embe_instance.get_raw_embedding(query_text)
-            logger.debug("embe finished")
+            logger.info("embe finished")
             # TODO: buggy here, token usage did not calculated correctly
-            ret = pinecorn_instance.query_meta(namespace=vector_database.NamesSpaces.Glossary.value, threshold=0.82,
+            ret = pinecone_instance.query_meta(namespace=vector_database.NamesSpaces.Glossary.value, threshold=0.82,
                                                vector=embe, top_k=8)
-            logger.debug(f"pinecorn finished, ret: {ret}")
+            logger.info(f"pinecone query finished, ret: {ret}")
             break
         except Exception as e:
-            logger.error(f"get_context error: {e}")
+            logger.error(f"捕获到异常:{type(e).__name__}", exc_info=True)
             # to workaround pinecone bug, sleep and retry
             time.sleep(1)
             continue
@@ -119,8 +119,8 @@ def trans(gpt_instance, query_text, history=None):
     if (history):
         gpt_instance.set_history(history)
 
-    context = get_context(gpt_instance, query_text)
-    translations = gpt_instance.query([context], query_text)
+    # context = get_context(gpt_instance, query_text)
+    translations = gpt_instance.query([], query_text)
 
     logger.debug(f"query finished query_text: {query_text}, translations = {translations}")
     return translations
@@ -135,9 +135,6 @@ def process_row_shot(gpt_instance, row_number, row_data, target_languages, progr
 
     target_languages_str = ','.join(target_languages)
     gpt_instance.set_system_prompt(PROMPT_CONTENT.replace("{target_languages}", target_languages_str))
-    # 2. The terminology is here to help you make correct translation(first line are language):
-    gpt_instance.set_post_prompt("")
-    gpt_instance.set_use_history(False)
     history = None
 
     query_text = make_query(title, label, text)
@@ -266,8 +263,8 @@ def process_row(row_number, row_data, target_languages, progress_callback=None, 
         progress_callback(f"processing string: {row_number} tokens: {tokens}")
 
     try:
-        if (tokens <= fast_token_limit):
-            return process_row_shot(gpt_instance, row_number, row_data, target_languages, progress_callback, retries)
+        if tokens <= fast_token_limit:
+            return process_row_shot(gpt_instance, row_number, row_data, target_languages, progress_callback)
         else:
             return process_row_long(gpt_instance, row_number, row_data, target_languages, progress_callback, retries)
     except Exception as e:

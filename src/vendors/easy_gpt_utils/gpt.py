@@ -17,16 +17,11 @@ class GPT():
 
         self.model = model
         self.engine = model
-        self.api_type = api_type
-        self.api_base = api_base
-        self.api_key = api_key
-        self.api_version = api_version
         self.temperature = temperature
         self.system_prompt = system_prompt
         self.post_prompt = post_prompt
         self.use_history = use_history
         self.history = []
-        self.model = model
         if api_type == "open_ai":
             self.client = OpenAI(api_key=api_key)
         elif api_type == "azure":
