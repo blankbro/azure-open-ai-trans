@@ -4,3 +4,4 @@
 /**/__pycache__
 /src/prompt/prompt
 /**/log.txt
+/**/*.log

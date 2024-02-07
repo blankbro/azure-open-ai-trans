@@ -1,18 +1,21 @@
 import os
-import uuid
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify, session, send_file
+from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
-from werkzeug.utils import secure_filename
 
+import log_util
 import trans
+
+logger = log_util.getLogger(__name__)
 
 load_dotenv()
 HTML_TITLE = os.getenv("HTML_TITLE")
 HTML_CHANGELOG = os.getenv("HTML_CHANGELOG")
 
 app = Flask(__name__)
+app.logger.addHandler(log_util.root_handler)
+app.logger.addHandler(log_util.error_handler)
 app.secret_key = os.urandom(24)
 app.config['UPLOAD_FOLDER'] = 'output/uploads'
 app.config['DOWNLOAD_FOLDER'] = 'output/downloads'
@@ -32,23 +35,23 @@ def translate_text():
     user_id = request.form['user_id']
     enable_gpt4 = request.form['enable_gpt4']
 
-    # 这里对应了trans代码中的process_row函数的定义：text需要是一个元组，其中第四个元素是要翻译的文本
-    transrow = ('', '', '', text)
-
     def report_progress(lang):
         socketio.emit('translation_progress', {'user_id': user_id, 'progress': lang})
 
-    translations = trans.process_row(1, transrow, target_languages, report_progress,
-                                     enable_gpt4=enable_gpt4)  # 使用您提供的翻译函数
+    translations = trans.process_row(
+        1,
+        # 元组中第四个元素是要翻译的文本
+        ('', '', '', text),
+        target_languages,
+        report_progress,
+        enable_gpt4=enable_gpt4
+    )
 
-    print(f" text {text} target_languages {target_languages} user_id {user_id} enable_gpt4 {enable_gpt4}")
+    logger.info(f" text {text} target_languages {target_languages} user_id {user_id} enable_gpt4 {enable_gpt4}")
 
     result = ""
     for i in range(len(target_languages)):
         result += "\n\n" + target_languages[i] + ": " + translations[i + 4]
-        # result.append({"language": languages[i], "translation": translations[i+4]})
-
-    # print (jsonify(result))
 
     return jsonify({"success": result})
 

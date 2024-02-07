@@ -1,13 +1,14 @@
 import json
-import logging
 import os
 import re
-import sys
 import time
 
 from dotenv import load_dotenv
 
+import log_util
 from src.vendors.easy_gpt_utils import gpt, embedding, vector_database
+
+logger = log_util.getLogger(__name__)
 
 load_dotenv()
 # GPT3.5
@@ -33,19 +34,6 @@ VECTOR_DATABASE_PINECONE_API_KEY = os.getenv("VECTOR_DATABASE_PINECONE_API_KEY")
 prompt = open('prompt/prompt', 'r')
 PROMPT_CONTENT = prompt.read()
 prompt.close()
-
-
-class PrintHandler(logging.StreamHandler):
-    def emit(self, record):
-        print(self.format(record))
-
-
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(name)s] [%(funcName)s:%(lineno)d] - %(message)s')
-console_handler = PrintHandler(sys.stdout)
-console_handler.setFormatter(formatter)
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-logger.addHandler(console_handler)
 
 
 def log_error(row_number, row_data, error, translations_str=None):
