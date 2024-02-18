@@ -6,6 +6,7 @@ import time
 from dotenv import load_dotenv
 
 import log_util
+from gpt_util import OpenAIClient
 from vendors.easy_gpt_utils import vector_database, gpt, embedding
 
 logger = log_util.get_logger(__name__)
@@ -53,6 +54,13 @@ def get_gpt_instance(enable_gpt4=False):
             api_version=AZURE_OPENAI_MODEL_GPT4_API_VERSION,
             api_key=AZURE_OPENAI_MODEL_GPT4_API_KEY
         )
+        gpt_client = OpenAIClient(
+            api_type="azure",
+            api_base=AZURE_OPENAI_MODEL_GPT4_API_BASE,
+            api_version=AZURE_OPENAI_MODEL_GPT4_API_VERSION,
+            api_key=AZURE_OPENAI_MODEL_GPT4_API_KEY,
+            chatModel=AZURE_OPENAI_MODEL_GPT4
+        )
         token_limit = 3700
     else:
         gpt_instance = gpt.GPT(
@@ -62,8 +70,15 @@ def get_gpt_instance(enable_gpt4=False):
             api_version=AZURE_OPENAI_MODEL_GPT3_5_API_VERSION,
             api_key=AZURE_OPENAI_MODEL_GPT3_5_API_KEY
         )
+        gpt_client = OpenAIClient(
+            api_type="azure",
+            api_base=AZURE_OPENAI_MODEL_GPT3_5_API_BASE,
+            api_version=AZURE_OPENAI_MODEL_GPT3_5_API_VERSION,
+            api_key=AZURE_OPENAI_MODEL_GPT3_5_API_KEY,
+            chatModel=AZURE_OPENAI_MODEL_GPT3_5
+        )
         token_limit = 1850
-    return gpt_instance, token_limit
+    return gpt_instance, token_limit, gpt_client
 
 
 def make_query(title, label, text):
@@ -217,9 +232,7 @@ def process_row_long(gpt_instance, row_number, row_data, target_languages, progr
 #  row_number: 行号,用来表示在input excel中的行位置，这里仅用户打印
 #  row_data: 一行输入数据，是一个列表，包含了分类，标题，url，正文
 #  min_interval: 最小间隔，如果翻译时间小于min_interval，那么会sleep，这是由于GPT调用时往往会在一定时间内有次数限制，如果短时间内调用次数过多，会返回错误
-#  retries: 重试次数，如果翻译失败，会重试retries次，如果仍然失败，那么就会返回None
-def process_row(row_number, row_data, target_languages, progress_callback=None, min_interval=1, retries=3,
-                enable_gpt4=False):
+def process_row(row_number, row_data, target_languages, progress_callback=None, min_interval=1, enable_gpt4=False):
     title, label, _, text = row_data
     if not text:
         return row_data + (None,) * len(target_languages)
@@ -233,18 +246,25 @@ def process_row(row_number, row_data, target_languages, progress_callback=None, 
     # TODO: 2023/05/11 buggy here, 在增加了glossary之后，token的使用量计算不正确，需要重新计算
     # 2021/05/11 临时方案，再减去一个glossary_token_limit / 2
 
-    gpt_instance, token_limit = get_gpt_instance(enable_gpt4)
-    tokens = gpt_instance.num_tokens_from_string(row_data[3])
-    fast_token_limit = int((token_limit - glossary_token_limit / 2) / len(target_languages))
-    logger.info(f"processing row: {row_number} tokens: {tokens} fast_token_limit: {fast_token_limit}")
+    gpt_instance, token_limit, gpt_client = get_gpt_instance(enable_gpt4)
+    logger.info(f"processing row: {row_number}")
     if progress_callback:
-        progress_callback(f"processing string: {row_number} tokens: {tokens}")
+        progress_callback(f"processing string: {row_number}")
 
     try:
-        if tokens <= fast_token_limit:
-            return process_row_shot(gpt_instance, row_number, row_data, target_languages, progress_callback)
-        else:
-            return process_row_long(gpt_instance, row_number, row_data, target_languages, progress_callback, retries)
+        target_languages_str = ','.join(target_languages)
+        trans_prompt = PROMPT_CONTENT.replace("{target_languages}", target_languages_str).replace("{origin_text}", text)
+
+        translations_str = gpt_client.chatCompletionsCreate(
+            temperature=0.0,
+            messages=[{'role': 'user', 'content': trans_prompt}]
+        )
+        json_pattern = re.compile(r'\[\s*\{[\s\S]*\}\s*\]')
+        json_string = json_pattern.search(translations_str).group()
+        translations = json.loads(json_string)
+        translated_texts = [t["txt"] for t in translations]
+
+        return row_data + tuple(translated_texts)
     except Exception as e:
         logger.error(f"捕获到异常:{type(e).__name__}", exc_info=True)
     finally:

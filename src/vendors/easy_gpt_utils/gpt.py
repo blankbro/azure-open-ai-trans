@@ -16,7 +16,6 @@ class GPT():
             raise Exception("api_type should be open_ai or azure")
 
         self.model = model
-        self.engine = model
         self.temperature = temperature
         self.system_prompt = system_prompt
         self.post_prompt = post_prompt

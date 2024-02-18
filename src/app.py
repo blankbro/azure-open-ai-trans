@@ -41,11 +41,11 @@ def translate_text():
         f"{request_id} translate_text: user_id {user_id}, enable_gpt4 {enable_gpt4}, target_languages {target_languages}, text {text}")
 
     translations = trans.process_row(
-        1,
+        row_number=1,
         # 元组中第四个元素是要翻译的文本
-        ('', '', '', text),
-        target_languages,
-        report_progress,
+        row_data=('', '', '', text),
+        target_languages=target_languages,
+        progress_callback=report_progress,
         enable_gpt4=enable_gpt4
     )
 
