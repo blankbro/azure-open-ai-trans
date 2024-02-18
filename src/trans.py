@@ -2,7 +2,9 @@ import json
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
+import openpyxl
 from dotenv import load_dotenv
 
 import log_util
@@ -74,34 +76,35 @@ def process_row(row_number, row_data, target_languages, progress_callback=None, 
 
     start_time = time.time()
 
-    # 168是一个经验值，如果token数量小于168，那么就调用短句翻译，否则调用长句翻译
-    # 猜测大于170的时候，GPT-3会出现错误，实际中遇到过token达到170时不出错，到171的时候就会出现错误
-    # 猜测应该是要求单句token数量 * 11国语言 + prompt的token数量 < 2048
-    # 当语言数量不确定的时候，采用1850/语言数量 作为阈值(gpt4使用3700)
-    # TODO: 2023/05/11 buggy here, 在增加了glossary之后，token的使用量计算不正确，需要重新计算
-    # 2021/05/11 临时方案，再减去一个glossary_token_limit / 2
-
-    gpt_instance, token_limit, gpt_client = get_gpt_instance(enable_gpt4)
+    gpt_client = get_gpt_instance(enable_gpt4)
     logger.info(f"processing row: {row_number}")
     if progress_callback:
         progress_callback(f"processing string: {row_number}")
 
     try:
-        target_languages_str = ','.join(target_languages)
+        text = text.replace('"', "'")
+        target_languages_str = ', '.join(target_languages)
         trans_prompt = PROMPT_CONTENT.replace("{target_languages}", target_languages_str).replace("{origin_text}", text)
 
-        translations_str = gpt_client.chatCompletionsCreate(
+        translations_jsonstr = gpt_client.chatCompletionsCreate(
             temperature=0.0,
             messages=[{'role': 'user', 'content': trans_prompt}]
         )
-        json_pattern = re.compile(r'\[\s*\{[\s\S]*\}\s*\]')
-        json_string = json_pattern.search(translations_str).group()
-        translations = json.loads(json_string)
-        translated_texts = [t["txt"] for t in translations]
+
+        translations_json = json.loads(translations_jsonstr)
+
+        translated_texts = []
+        for target_language in target_languages:
+            target_language = re.compile(r"\((.*?)\)").search(target_language).group(1)
+            if target_language in translations_json:
+                translated_texts.append(translations_json[target_language])
+            else:
+                translated_texts.append("")
 
         return row_data + tuple(translated_texts)
     except Exception as e:
         logger.error(f"捕获到异常:{type(e).__name__}", exc_info=True)
+        return row_data
     finally:
         end_time = time.time()
         elapsed_time = end_time - start_time
@@ -112,3 +115,52 @@ def process_row(row_number, row_data, target_languages, progress_callback=None, 
         logger.info(f"row {row_number} processed in {elapsed_time} seconds")
         if progress_callback:
             progress_callback(f"string {row_number} processed in {elapsed_time} seconds")
+
+
+def process_excel(input_file, output_file, min_row=2, max_row=None, target_languages=None, progress_callback=None,
+                  enable_gpt4=False):
+    input_wb = openpyxl.load_workbook(input_file)
+    input_sheet = input_wb.active
+
+    # Copy headers from input sheet to output sheet
+    headers = [cell for cell in next(input_sheet.iter_rows(min_row=1, max_row=1, max_col=4, values_only=True))]
+    headers += target_languages
+    output_wb = openpyxl.Workbook()
+    output_sheet = output_wb.active
+    output_sheet.append(headers)
+
+    max_row = input_sheet.max_row if max_row is None else max_row
+    # Process each row in the input sheet using ThreadPoolExecutor
+    input_data = list(
+        input_sheet.iter_rows(
+            min_row=min_row,
+            max_row=max_row,
+            min_col=1,
+            max_col=4,
+            values_only=True
+        )
+    )
+
+    # q: explain the code below
+    # a: https://stackoverflow.com/questions/6893968/how-to-get-the-return-value-from-a-thread-in-python
+    row_count = 0
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {
+            executor.submit(
+                process_row, row_number, row_data, target_languages, enable_gpt4=enable_gpt4
+            ) for row_number, row_data in enumerate(input_data, start=min_row)
+        }
+
+        for future in futures:
+            row_count = row_count + 1
+            if progress_callback:
+                progress_callback(f"{row_count}/{max_row} rows processed")
+            output_data = future.result()
+            output_sheet.append(output_data)
+            output_wb.save(output_file)
+
+    if progress_callback:
+        progress_callback('All translation finished.')
+
+    input_wb.close()
+    output_wb.close()
