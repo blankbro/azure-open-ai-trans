@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 import log_util
 from gpt_util import OpenAIClient
-from vendors.easy_gpt_utils import vector_database, gpt, embedding
 
 logger = log_util.get_logger(__name__)
 
@@ -37,23 +36,8 @@ PROMPT_CONTENT = prompt.read()
 prompt.close()
 
 
-def log_error(row_number, row_data, error, translations_str=None):
-    error_str = f"Error at row {row_number}: {error}\nInput data: {row_data}\nReturned data: {translations_str}\n"
-    logger.error(error_str)
-
-
-glossary_token_limit = 800
-
-
 def get_gpt_instance(enable_gpt4=False):
     if enable_gpt4 is not None and (enable_gpt4 is True or enable_gpt4 == 'true'):
-        gpt_instance = gpt.GPT(
-            model=AZURE_OPENAI_MODEL_GPT4,
-            api_type="azure",
-            api_base=AZURE_OPENAI_MODEL_GPT4_API_BASE,
-            api_version=AZURE_OPENAI_MODEL_GPT4_API_VERSION,
-            api_key=AZURE_OPENAI_MODEL_GPT4_API_KEY
-        )
         gpt_client = OpenAIClient(
             api_type="azure",
             api_base=AZURE_OPENAI_MODEL_GPT4_API_BASE,
@@ -61,15 +45,7 @@ def get_gpt_instance(enable_gpt4=False):
             api_key=AZURE_OPENAI_MODEL_GPT4_API_KEY,
             chatModel=AZURE_OPENAI_MODEL_GPT4
         )
-        token_limit = 3700
     else:
-        gpt_instance = gpt.GPT(
-            model=AZURE_OPENAI_MODEL_GPT3_5,
-            api_type="azure",
-            api_base=AZURE_OPENAI_MODEL_GPT3_5_API_BASE,
-            api_version=AZURE_OPENAI_MODEL_GPT3_5_API_VERSION,
-            api_key=AZURE_OPENAI_MODEL_GPT3_5_API_KEY
-        )
         gpt_client = OpenAIClient(
             api_type="azure",
             api_base=AZURE_OPENAI_MODEL_GPT3_5_API_BASE,
@@ -77,148 +53,7 @@ def get_gpt_instance(enable_gpt4=False):
             api_key=AZURE_OPENAI_MODEL_GPT3_5_API_KEY,
             chatModel=AZURE_OPENAI_MODEL_GPT3_5
         )
-        token_limit = 1850
-    return gpt_instance, token_limit, gpt_client
-
-
-def make_query(title, label, text):
-    # return f"The texts to be translated are under the category of [{title}] and [{label}].\n The texts to be translated are:[{text}]"
-    return f"The texts to be translated are:[{text}]"
-
-
-def get_context(gpt_instance, query_text, max_retries=3):
-    # query glossaies from vector database and set it as context
-    embe_instance = embedding.Embedding(
-        model=AZURE_OPENAI_MODEL_EMBEDDING,
-        api_type="azure",
-        api_base=AZURE_OPENAI_MODEL_EMBEDDING_API_BASE,
-        api_version=AZURE_OPENAI_MODEL_EMBEDDING_API_VERSION,
-        api_key=AZURE_OPENAI_MODEL_EMBEDDING_API_KEY,
-    )
-
-    pinecone_instance = vector_database.MyPinecone(index=VECTOR_DATABASE_PINECONE_INDEX,
-                                                   api_key=VECTOR_DATABASE_PINECONE_API_KEY,
-                                                   environment=VECTOR_DATABASE_PINECONE_ENVIRONMENT)
-
-    ret = None
-    for i in range(max_retries):
-        try:
-            logger.info("start embe")
-            embe = embe_instance.get_raw_embedding(query_text)
-            logger.info("embe finished")
-            # TODO: buggy here, token usage did not calculated correctly
-            ret = pinecone_instance.query_meta(namespace=vector_database.NamesSpaces.Glossary.value, threshold=0.82,
-                                               vector=embe, top_k=8)
-            logger.info(f"pinecone query finished, ret: {ret}")
-            break
-        except Exception as e:
-            logger.error(f"捕获到异常:{type(e).__name__}", exc_info=True)
-            # to workaround pinecone bug, sleep and retry
-            time.sleep(1)
-            continue
-
-    context = ""
-    if ret is not None and len(ret) > 0:
-        token_count = 0
-        context = "Please refer to the glossary for translation and use it directly:" + "\n".join(
-            item['metadata']['content'] for item in ret if (
-                token_count := token_count + gpt_instance.num_tokens_from_string(
-                    item['metadata']['content'])) < glossary_token_limit)
-
-    return context
-
-
-def trans(gpt_instance, query_text, history=None):
-    # Implement your translation API logic here.
-    # For example, using Google Translate API:
-    if (history):
-        gpt_instance.set_history(history)
-
-    # context = get_context(gpt_instance, query_text)
-    translations = gpt_instance.query([], query_text)
-
-    logger.debug(f"query finished query_text: {query_text}, translations = {translations}")
-    return translations
-
-
-def process_row_shot(gpt_instance, row_number, row_data, target_languages, progress_callback=None, retries=3):
-    title, label, _, text = row_data
-    if not text:
-        return row_data + (None,) * len(target_languages)
-
-    translated_texts = [None] * len(target_languages)
-
-    target_languages_str = ','.join(target_languages)
-    # gpt_instance.set_system_prompt(PROMPT_CONTENT.replace("{target_languages}", target_languages_str))
-    # history = None
-
-    # query_text = make_query(title, label, text)
-
-    translations_str = ""
-    prompt = PROMPT_CONTENT.replace("{target_languages}", target_languages_str).replace("{origin_text}", text)
-    translations_str = gpt_instance.query([], prompt)
-    # translations_str = trans(gpt_instance, query_text, history)
-    logger.debug(f"Row {row_number} translations_str: {translations_str}")
-    json_pattern = re.compile(r'\[\s*\{[\s\S]*\}\s*\]')
-    json_string = json_pattern.search(translations_str).group()
-    translations = json.loads(json_string)
-    translated_texts = [t["txt"] for t in translations]
-
-    return row_data + tuple(translated_texts)
-
-
-def process_row_long(gpt_instance, row_number, row_data, target_languages, progress_callback=None, retries=3):
-    title, label, _, paragraph = row_data
-    if not paragraph:
-        return row_data + (None,) * len(target_languages)
-    translations = []
-
-    translated_texts = [None] * len(target_languages)
-
-    for lan_index, language in enumerate(target_languages):
-        gpt_instance.set_system_prompt(
-            f'''You are a senior translator and work for Segway-Ninebot which has products such as emoped, e-bikes, e-scooters, go-karts, segways, off-road vehicles, and unicycles. They also use an App to operate the vehicles, get assistance, and communicate with users. I will provide you with the text to be translated, and you need to translate the text into [{language}]. The format is as follows:
-        Translated text
-        ''')
-        gpt_instance.set_post_prompt("")
-        gpt_instance.set_use_history(False)
-
-        texts = gpt_instance.split_text(paragraph)
-        logger.debug(f"Row {row_number} split: {len(texts)} language: {language} texts: {texts}")
-        translated_text = ""
-        for index, text in enumerate(texts):
-            query_text = make_query(title, label, text)
-            logger.info(
-                f"processing row {row_number} language: {language}({lan_index + 1}/{len(target_languages)}) split: {index + 1}/{len(texts)}")
-            if (progress_callback):
-                progress_callback(
-                    f"processing string {row_number} language: {language}({lan_index + 1}/{len(target_languages)}) split: {index + 1}/{len(texts)}")
-            break_label = False
-            for attempt in range(retries):
-                try:
-                    translations_text = trans(gpt_instance, query_text)
-                    logger.debug(f"Row {row_number} translations_str: {translations_text}")
-                    translated_text = translated_text + translations_text
-                    break
-                except Exception as e:
-                    if attempt < retries - 1:
-                        logger.warning(f"Row {row_number} Exception, attempt{attempt}, error:{e}")
-                        # sleep 1 seconds to avoid rate limit bug like pinecorn had
-                        time.sleep(1)
-                        continue
-                    log_error(row_number, row_data, e)
-                    break_label = True
-                    break
-
-            if break_label:
-                translated_text = ""
-                logger.error(
-                    f"Row {row_number} language:{language}({lan_index + 1}/{len(target_languages)} failed to translate, break")
-                break
-
-        translations.append(translated_text)
-    translated_texts = translations
-    return row_data + tuple(translated_texts)
+    return gpt_client
 
 
 # 这个函数用于将一个列表中的内容进行翻译，返回一个翻译后的列表
