@@ -3,5 +3,6 @@
 .env
 /**/__pycache__
 /**/prompt
+/**/prompt_bak
 /**/log.txt
 /**/*.log

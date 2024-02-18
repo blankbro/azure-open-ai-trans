@@ -144,15 +144,13 @@ class GPT():
 
         if self.use_history:
             query_message = [
-                {'role': 'system',
-                 'content': f'{self.system_prompt} {text}'},
+                {'role': 'system', 'content': f'{self.system_prompt} {text}'},
                 *self.history,
                 {'role': 'user', 'content': query_text + self.post_prompt},
             ]
         else:
             query_message = [
-                {'role': 'system',
-                 'content': f'{self.system_prompt} {text}'},
+                {'role': 'system', 'content': f'{self.system_prompt} {text}'},
                 {'role': 'user', 'content': query_text + self.post_prompt},
             ]
 

@@ -134,42 +134,20 @@ def process_row_shot(gpt_instance, row_number, row_data, target_languages, progr
     translated_texts = [None] * len(target_languages)
 
     target_languages_str = ','.join(target_languages)
-    gpt_instance.set_system_prompt(PROMPT_CONTENT.replace("{target_languages}", target_languages_str))
-    history = None
+    # gpt_instance.set_system_prompt(PROMPT_CONTENT.replace("{target_languages}", target_languages_str))
+    # history = None
 
-    query_text = make_query(title, label, text)
+    # query_text = make_query(title, label, text)
 
     translations_str = ""
-    for attempt in range(retries):
-        try:
-            translations_str = trans(gpt_instance, query_text, history)
-            logger.debug(f"Row {row_number} translations_str: {translations_str}")
-            json_pattern = re.compile(r'\[\s*\{[\s\S]*\}\s*\]')
-            json_string = json_pattern.search(translations_str).group()
-            translations = json.loads(json_string)
-            translated_texts = [t["txt"] for t in translations]
-            break
-        except Exception as e:
-            logger.error(f"捕获到异常:{type(e).__name__}", exc_info=True)
-            if attempt < retries - 1:
-                logger.warning(
-                    f"Row {row_number} Exception, attempt {attempt}, error:{e}, raw text: {translations_str}")
-                history = [
-                    {'role': 'user', 'content': query_text},
-                    {'role': 'assistant', 'content': translations_str}
-                ]
-                query_text = '''
-                    When I try to parse the returned JSON, I encountered an error:
-                    {e}
-                    Please make corrections.
-                    '''
-                # The json format is wrong, it may be:\n1. special characters, such as no escape character before the quotation mark, or there may be extra characters. In this case you should fix it.\n2. There are more than one json array, In this case you should no split the text to be translated.\n please check and re-output.
-                gpt_instance.set_use_history(True)
-                # sleep 1 seconds to avoid rate limit bug like pinecorn had
-                time.sleep(1)
-                continue
-            log_error(row_number, row_data, e, translations_str)
-            break
+    prompt = PROMPT_CONTENT.replace("{target_languages}", target_languages_str).replace("{origin_text}", text)
+    translations_str = gpt_instance.query([], prompt)
+    # translations_str = trans(gpt_instance, query_text, history)
+    logger.debug(f"Row {row_number} translations_str: {translations_str}")
+    json_pattern = re.compile(r'\[\s*\{[\s\S]*\}\s*\]')
+    json_string = json_pattern.search(translations_str).group()
+    translations = json.loads(json_string)
+    translated_texts = [t["txt"] for t in translations]
 
     return row_data + tuple(translated_texts)
 
