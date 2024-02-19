@@ -3,6 +3,7 @@ import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from json import JSONDecodeError
 
 import openpyxl
 from dotenv import load_dotenv
@@ -82,7 +83,7 @@ def process_row(row_number, row_data, target_languages, progress_callback=None, 
         progress_callback(f"processing string: {row_number}")
 
     try:
-        text = text.replace('"', "'")
+        text = text.replace('"', "'").replace("\n", "")
         target_languages_str = ', '.join(target_languages)
         trans_prompt = PROMPT_CONTENT.replace("{target_languages}", target_languages_str).replace("{origin_text}", text)
 
@@ -91,7 +92,11 @@ def process_row(row_number, row_data, target_languages, progress_callback=None, 
             messages=[{'role': 'user', 'content': trans_prompt}]
         )
 
-        translations_json = json.loads(translations_jsonstr)
+        try:
+            translations_json = json.loads(translations_jsonstr)
+        except JSONDecodeError:
+            logger.error(f"Json解析异常, translations_jsonstr: {translations_jsonstr}")
+            return row_data
 
         translated_texts = []
         for target_language in target_languages:

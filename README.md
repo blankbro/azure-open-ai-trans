@@ -31,6 +31,13 @@ cp .env.template .env
 vi .env # or use whatever you feel comfortable with
 ```
 
+configure your prompt
+
+```
+cp src/prompt/prompt.template src/prompt/prompt
+vi src/prompt/prompt # or use whatever you feel comfortable with
+```
+
 run
 
 ```console
