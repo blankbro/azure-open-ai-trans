@@ -28,7 +28,7 @@ Stop(){
 
 Start(){
     echo "开始启动"
-    nohup python src/app.py --name=${name} &>/dev/null &
+    nohup python src/app.py --name=${name} 2>&1>/dev/null &
     for ((i=0; i<10; ++i)) do
         sleep 1
         pid=$(ps -ef | grep "${name}" | grep -v grep | grep -v kill | awk '{print $2}')
