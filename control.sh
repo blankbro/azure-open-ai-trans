@@ -37,7 +37,7 @@ Start(){
 
     # 后台启动方式1
     echo "nohup python src/app.py --name=${name} 2>&1 &"
-    nohup python src/app.py --name=${name} 2>&1 &
+    python src/app.py --name=${name}
 
     # 后台启动方式2
     echo ".venv/bin/python src/app.py --name=${name}"
