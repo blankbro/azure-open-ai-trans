@@ -34,11 +34,14 @@ Start(){
     fi
 
     echo "开始启动"
-    echo "nohup python src/app.py --name=${name} 2>&1 &" # 这种方式在 ubuntu 不好使，在 mac 可以
-    nohup python src/app.py --name=${name} 2>&1 &
 
+    # 后台启动方式1
+#    echo "nohup python src/app.py --name=${name} 2>&1 &"
+#    nohup python src/app.py --name=${name} 2>&1 &
+
+    # 后台启动方式2
     echo ".venv/bin/python src/app.py --name=${name}"
-#    .venv/bin/python src/app.py --name=${name} &>/dev/null &
+    .venv/bin/python src/app.py --name=${name} &>/dev/null &
 
     for ((i=0; i<10; ++i)) do
         sleep 1
