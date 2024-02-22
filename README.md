@@ -10,6 +10,7 @@ Create `venv` environment for Python:
 
 ```console
 python -m venv .venv
+# or python3 -m venv .venv
 
 # 进入虚拟环境
 source .venv/bin/activate
@@ -22,6 +23,7 @@ Install `PIP` Requirements
 
 ```console
 pip install -r requirements.txt
+# or pip3.9 install -r requirements.txt
 ```
 
 configure your .env as Environment variables
@@ -42,4 +44,5 @@ run
 
 ```console
 python src/app.py
+# or python3.9 src/app.py
 ```

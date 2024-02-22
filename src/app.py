@@ -2,7 +2,7 @@ import os
 import uuid
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, send_file
 from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 
@@ -110,6 +110,16 @@ def upload_file():
     )
 
     return jsonify({"success": "Translation Success!", "filename": filename}), 200
+
+
+@app.route('/translate/download/<filename>', methods=['GET'])
+def download_file(filename):
+    if 'download_filepath' not in session or 'download_filename' not in session:
+        return jsonify({"error": "No file selected"}), 400
+
+    download_filepath = session['download_filepath']
+    download_filename = session['download_filename']
+    return send_file(download_filepath, download_name=download_filename, as_attachment=True)
 
 
 if __name__ == '__main__':
