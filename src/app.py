@@ -13,6 +13,7 @@ logger = log_util.get_logger(__name__)
 load_dotenv()
 HTML_TITLE = os.getenv("HTML_TITLE")
 HTML_CHANGELOG = os.getenv("HTML_CHANGELOG")
+SERVER_PORT = os.getenv("SERVER_PORT")
 UPLOAD_FOLDER = 'output/uploads'
 DOWNLOAD_FOLDER = 'output/downloads'
 
@@ -113,4 +114,4 @@ def upload_file():
 
 if __name__ == '__main__':
     logger.info("App start")
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=SERVER_PORT, debug=True)
