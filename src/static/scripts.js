@@ -1,7 +1,7 @@
 const socket = io();
 const userId = Date.now();
 
-socket.on('translation_progress', function(progress) {
+socket.on('translation_progress', function (progress) {
     // 这是一个很差劲的实现用来区分多用户的进度显示，但是由于用户并不多且是一个demo，于是就将就了
     if (parseInt(progress.user_id) !== userId) {
         return;
@@ -10,7 +10,7 @@ socket.on('translation_progress', function(progress) {
     translationProgress.textContent = progress.progress;
 });
 
-socket.on('file_progress', function(progress) {
+socket.on('file_progress', function (progress) {
     // 这是一个很差劲的实现用来区分多用户的进度显示，但是由于用户并不多且是一个demo，于是就将就了
     if (parseInt(progress.user_id) !== userId) {
         return;
@@ -35,7 +35,12 @@ async function translateText() {
 
     const response = await fetch('/translate/text', {
         method: 'POST',
-        body: new URLSearchParams({text: inputText, languages: JSON.stringify(languages), user_id: userId, enable_gpt4: enableGPT4}),
+        body: new URLSearchParams({
+            text: inputText,
+            languages: JSON.stringify(languages),
+            user_id: userId,
+            enable_gpt4: enableGPT4
+        }),
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     });
 
@@ -84,7 +89,7 @@ async function uploadFile() {
         fileInput.disabled = false;
         submitFile.disabled = false;
         downloadButton.disabled = false;
-        downloadButton.setAttribute('data-filename', data.filename);
+        downloadButton.setAttribute('data-filename', data.download_filename);
         alert('Translation finished');
     } else {
         fileInput.disabled = false;
@@ -95,8 +100,8 @@ async function uploadFile() {
 
 function downloadTranslatedFile() {
     const downloadButton = document.getElementById('downloadFile');
-    const filename = downloadButton.getAttribute('data-filename');
-    window.location.href = `/translate/download/${filename}`;
+    const download_filename = downloadButton.getAttribute('data-filename');
+    window.location.href = `/translate/download/${download_filename}`;
 }
 
 function showTranslatingMessage() {
@@ -112,7 +117,7 @@ function getSelectedLanguages() {
     return languages;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('submitText').addEventListener('click', showTranslatingMessage);
     document.getElementById('submitText').addEventListener('click', translateText);
     document.getElementById('submitFile').addEventListener('click', uploadFile);

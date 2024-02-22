@@ -2,7 +2,7 @@ import os
 import uuid
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, jsonify, session, send_file
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_socketio import SocketIO
 from werkzeug.utils import secure_filename
 
@@ -96,10 +96,6 @@ def upload_file():
     def report_progress(lang):
         socketio.emit('file_progress', {'user_id': user_id, 'progress': lang})
 
-    session['upload_filepath'] = upload_filepath
-    session['download_filepath'] = download_filepath
-    session['download_filename'] = file_save_name
-
     # 开始翻译
     trans.process_excel(
         upload_filepath,
@@ -109,17 +105,20 @@ def upload_file():
         enable_gpt4=enable_gpt4
     )
 
-    return jsonify({"success": "Translation Success!", "filename": filename}), 200
+    return jsonify({"success": "Translation Success!", "download_filename": file_save_name}), 200
 
 
 @app.route('/translate/download/<filename>', methods=['GET'])
 def download_file(filename):
-    if 'download_filepath' not in session or 'download_filename' not in session:
-        return jsonify({"error": "No file selected"}), 400
-
-    download_filepath = session['download_filepath']
-    download_filename = session['download_filename']
-    return send_file(download_filepath, download_name=download_filename, as_attachment=True)
+    download_filepath = os.path.join(DOWNLOAD_FOLDER, filename)
+    if not os.path.isfile(download_filepath):
+        return jsonify({"error": "File not exists"}), 400
+    try:
+        download_file_abspath = os.path.abspath(download_filepath)
+        return send_file(path_or_file=download_file_abspath, download_name=filename, as_attachment=True)
+    except Exception as e:
+        logger.error(f"捕获到异常:{type(e).__name__}", exc_info=True)
+        return jsonify({"error": type(e).__name__}), 400
 
 
 if __name__ == '__main__':
