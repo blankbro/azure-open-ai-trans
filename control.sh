@@ -60,7 +60,14 @@ Start(){
     fi
 }
 
+Ps(){
+    ps -ef | grep "${name}" | grep -v grep | grep -v kill
+}
+
 case $1 in
+    "ps" )
+        Ps
+    ;;
     "start" )
         Start
     ;;
