@@ -19,7 +19,7 @@ Stop(){
         pid=$(ps -ef | grep "${name}" | grep -v grep | grep -v kill | awk '{print $2}')
         if [ -n "${pid}" ]; then
           echo "kill -9 ${pid}"
-          pkill -9 ${pid}
+          kill -9 ${pid}
         fi
     else
         echo "进程已关闭"
